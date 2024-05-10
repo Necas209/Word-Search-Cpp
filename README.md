@@ -1,6 +1,6 @@
-# Word-Search-Cpp
+# word_props-Search-Cpp
 
-This is a simple word search game implemented in C++.
+This is a simple word_props search game implemented in C++.
 
 ## How to run
 
@@ -8,7 +8,7 @@ This is a simple word search game implemented in C++.
 2. Run the following commands:
 
 ```
-cd Word-Search-Cpp
+cd word_props-Search-Cpp
 cmake .
 make
 ./word_search
