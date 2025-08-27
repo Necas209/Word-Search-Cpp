@@ -1,8 +1,9 @@
+#include <chrono>
 #include <iostream>
 #include <print>
 #include <thread>
 
-#include "lab.hpp"
+#include "console.hpp"
 #include "game.hpp"
 
 int main()
@@ -20,7 +21,7 @@ int main()
         std::println("  2 -> Load a game");
         std::println("  3 -> Exit");
         std::print("Option: ");
-        uint8_t option;
+        std::uint8_t option;
         std::cin >> option;
         std::cin.ignore();
         console::clear();
@@ -28,10 +29,10 @@ int main()
         switch (option)
         {
         case '1':
-            game::new_game();
+            word_search::new_game();
             break;
         case '2':
-            game::load_game();
+            word_search::load_game();
             break;
         case '3':
             using namespace std::chrono_literals;

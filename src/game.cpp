@@ -1,36 +1,67 @@
 #include "game.hpp"
 
-#include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <ranges>
 #include <thread>
 
-#include "lab.hpp"
+#include "console.hpp"
 
 using namespace std::chrono_literals;
 namespace rv = std::ranges::views;
 
-constexpr game::game(board board, player player) noexcept
-    : board_(std::move(board)), player_(std::move(player))
+auto word_search::load_words() -> std::vector<std::string>
 {
+    std::println("Pick the theme of the word search:");
+    std::println("\t1 -> Portugal");
+    std::println("\t2 -> United States of America");
+    std::uint16_t option;
+
+    std::filesystem::path filename;
+    while (filename.empty())
+    {
+        std::print("Option: ");
+        if (!(std::cin >> option))
+        {
+            std::cin.clear();
+        }
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+        switch (option)
+        {
+        case 1:
+            std::println("Loading the districts of Portugal...");
+            filename = "data/portugal.txt";
+            break;
+        case 2:
+            std::println("Loading the United States of America...");
+            filename = "data/usa.txt";
+            break;
+        default:
+            std::println("Invalid option. Please enter 1 or 2.");
+        }
+    }
+
+    std::ifstream file(filename);
+    if (!file)
+    {
+        throw std::filesystem::filesystem_error{
+            "Could not read file.",
+            filename,
+            std::make_error_code(std::errc::io_error)
+        };
+    }
+
+    std::vector<std::string> words;
+    std::string line;
+    while (std::getline(file, line))
+    {
+        words.push_back(line);
+    }
+    return words;
 }
 
-void from_json(const json& j, game& game)
-{
-    j.at("elapsed").get_to(game.elapsed_);
-    j.at("board").get_to(game.board_);
-    j.at("player").get_to(game.player_);
-}
-
-void to_json(json& j, const game& game)
-{
-    j = json{
-        {"elapsed", game.elapsed_},
-        {"board", game.board_},
-        {"player", game.player_},
-    };
-}
-
-void game::play()
+auto word_search::game::play() -> void
 {
     start_ = std::chrono::high_resolution_clock::now();
     while (!board_.solved())
@@ -80,19 +111,20 @@ void game::play()
     console::gotoxy(0, board_.height() + 5);
 
     const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(elapsed_);
-    std::println("{}'s final score: {}.", player_.name(), player_.final_score(elapsed_seconds, board_.words_found()));
+    std::println("{}'s final score: {}.", player_.name(),
+                 player_.final_score(elapsed_seconds, board_.words_found()));
     std::println("\nYou took {} to finish the game.", elapsed_seconds);
     console::pause();
 }
 
-void game::pause_game()
+auto word_search::game::pause_game() -> void
 {
     const auto end = std::chrono::high_resolution_clock::now();
     elapsed_ += end - start_;
     save_game();
 }
 
-void game::save_game(const std::filesystem::path& filename) const
+auto word_search::game::save_game(const std::filesystem::path& filename) const -> void
 {
     std::println("Saving the game...");
     std::ofstream file{filename};
@@ -105,18 +137,18 @@ void game::save_game(const std::filesystem::path& filename) const
         };
     }
 
-    const json j = *this;
+    const nlohmann::json j = *this;
     file << std::setw(2) << j;
     std::println("The game was saved successfully.");
 }
 
-void game::find_word()
+auto word_search::game::find_word() -> void
 {
     std::print("\nWhat is your word? ");
     std::string str;
     std::getline(std::cin, str);
 
-    size_t x, y;
+    std::size_t x, y;
     std::println("\nWhere is it?");
     std::print("x: ");
     std::cin >> x;
@@ -125,7 +157,7 @@ void game::find_word()
     std::cin >> y;
     std::cin.ignore();
 
-    switch (board_.find_word(word{word::cleanup(str), orientation::none, point{x, y}}))
+    switch (board_.find_word(word{word::cleanup(str), point{x, y}, {}}))
     {
     case word_state::not_found:
         std::println("\nYou didn't find the word.");
@@ -141,18 +173,18 @@ void game::find_word()
     }
 }
 
-void game::new_game()
+auto word_search::new_game() -> void
 {
     std::println("Starting a new game...");
 
-    auto player = player::new_player();
+    auto player = new_player();
     std::cout << std::endl;
 
     auto words = load_words();
     console::pause();
     console::clear();
 
-    auto board = board::new_board();
+    auto board = new_board();
     board.fill_letters(words, 10);
     console::clear();
 
@@ -160,7 +192,7 @@ void game::new_game()
     game.play();
 }
 
-void game::load_game(const std::filesystem::path& filename)
+auto word_search::load_game(const std::filesystem::path& filename) -> void
 {
     std::println("Loading a game...");
     if (!std::filesystem::exists(filename))
@@ -178,63 +210,8 @@ void game::load_game(const std::filesystem::path& filename)
         };
     }
 
-    json j;
+    nlohmann::json j;
     file >> j;
-    auto game = j.get<::game>();
+    auto game = j.get<word_search::game>();
     game.play();
-}
-
-auto load_words() -> std::vector<std::string>
-{
-    std::println("Pick the theme of the word search:");
-    std::println("\t1 -> Portugal");
-    std::println("\t2 -> United States of America");
-    uint16_t option;
-    while (true)
-    {
-        std::print("Option: ");
-        if (!(std::cin >> option))
-        {
-            std::cin.clear();
-        }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        if (option == 1 || option == 2)
-            break;
-
-        std::println("Invalid option. Please enter 1 or 2.");
-    }
-
-
-    std::filesystem::path filename;
-    switch (option)
-    {
-    case 1:
-        std::println("Loading the districts of Portugal...");
-        filename = "data/portugal.txt";
-        break;
-    case 2:
-        std::println("Loading the United States of America...");
-        filename = "data/usa.txt";
-        break;
-    default:
-        std::println("Invalid option.");
-        exit(1);
-    }
-    std::ifstream file(filename);
-    if (!file)
-    {
-        throw std::filesystem::filesystem_error{
-            "Could not read file.",
-            filename,
-            std::make_error_code(std::errc::io_error)
-        };
-    }
-
-    std::vector<std::string> words;
-    std::string line;
-    while (std::getline(file, line))
-    {
-        words.push_back(line);
-    }
-    return words;
 }

@@ -1,9 +1,11 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.30)
 
-project(word-search)
+project(word-search LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
+set(PROJECT_SOURCE_DIR src)
+set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -14,22 +16,33 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 add_executable(word-search
-        src/lab.cpp
-        src/board.cpp
-        src/game.cpp
-        src/main.cpp
-        src/player.cpp
-        src/word.cpp
+        ${PROJECT_SOURCE_DIR}/main.cpp
+        ${PROJECT_INCLUDE_DIR}/console.hpp
+        ${PROJECT_INCLUDE_DIR}/point.hpp
+        ${PROJECT_INCLUDE_DIR}/rnd.hpp
+        ${PROJECT_INCLUDE_DIR}/word.hpp
+        ${PROJECT_INCLUDE_DIR}/player.hpp
+        ${PROJECT_INCLUDE_DIR}/board.hpp
+        ${PROJECT_INCLUDE_DIR}/game.hpp
 )
 
 if (MSVC)
-    target_compile_options(word-search PRIVATE /W4 /WX)
-else ()
-    target_compile_options(word-search PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(word-search PRIVATE /W4 /WX /D_CRT_SECURE_NO_WARNINGS)
+else (GCC)
+    target_compile_options(word-search PRIVATE -Wall -Wextra -Wpedantic -Werror -Wconversion -Wdouble-promotion
+            -Wunused-parameter -Wunused-function -Wno-sign-conversion -Wswitch-enum
+            -fsanitize=undefined -fsanitize-trap)
 endif ()
 
-target_include_directories(word-search SYSTEM PRIVATE ${nlohmann_json_SOURCE_DIR}/include)
-target_include_directories(word-search PRIVATE include)
+target_sources(word-search PRIVATE
+        ${PROJECT_SOURCE_DIR}/board.cpp
+        ${PROJECT_SOURCE_DIR}/console.cpp
+        ${PROJECT_SOURCE_DIR}/game.cpp
+        ${PROJECT_SOURCE_DIR}/player.cpp
+        ${PROJECT_SOURCE_DIR}/word.cpp
+)
+target_include_directories(word-search PRIVATE ${PROJECT_INCLUDE_DIR})
+
 target_link_libraries(word-search PRIVATE nlohmann_json::nlohmann_json)
 
 file(COPY data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
