@@ -15,6 +15,9 @@
 # AWS User-specific
 .idea/**/aws.xml
 
+# AI-based code completion
+.idea/**/copilot.**.xml
+
 # Generated files
 .idea/**/contentModel.xml
 

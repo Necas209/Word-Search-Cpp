@@ -3,6 +3,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "ftxui/component/screen_interactive.hpp"
+
 namespace word_search
 {
     enum class level : std::uint16_t
@@ -35,6 +37,8 @@ namespace word_search
 
         [[nodiscard]] auto final_score(std::chrono::seconds elapsed, std::int64_t num_words) const -> std::int64_t;
 
+        [[nodiscard]] static auto new_player(ftxui::ScreenInteractive& screen) -> player;
+
         friend void to_json(nlohmann::json& j, const player& player)
         {
             j = nlohmann::json{
@@ -53,8 +57,6 @@ namespace word_search
             j.at("level").get_to(player.level_);
         }
     };
-
-    auto new_player() -> player;
 }
 
 #endif //WORD_SEARCH_PLAYER_HPP

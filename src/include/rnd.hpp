@@ -10,7 +10,6 @@ namespace rnd
     /// \param lower The lower bound
     /// \param upper The upper bound (inclusive)
     /// \return The random number
-
     template <std::integral T>
     T next(const T lower, const T upper)
     {

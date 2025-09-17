@@ -1,33 +1,43 @@
 #include "word.hpp"
 
-auto word_search::word::is_found_at(const point_t& point) const -> bool
+#include <ranges>
+#include <span>
+#include <utility>
+
+auto word_search::orientation_names() -> std::span<const std::string_view>
 {
-    if (!found_)
-        return false;
+    static constexpr std::array<std::string_view, 8> orientation_names = {
+        "Front",
+        "Back",
+        "Down",
+        "Up",
+        "Front/Down",
+        "Back/Up",
+        "Back/Down",
+        "Front/Up"
+    };
+    return orientation_names;
+}
 
-    const auto [x, y] = point;
-    const auto [word_x, word_y] = point_;
-    const auto len = length();
+auto word_search::orientation_offset(const orientation orientation) -> std::pair<int, int>
+{
+    static constexpr std::array orientation_offsets = {
+        std::pair{1, 0}, // front
+        std::pair{-1, 0}, // back
+        std::pair{0, 1}, // down
+        std::pair{0, -1}, // up
+        std::pair{1, 1}, // front_down
+        std::pair{-1, -1}, // back_up
+        std::pair{-1, 1}, // back_down
+        std::pair{1, -1} // front_up
+    };
+    return orientation_offsets[std::to_underlying(orientation)];
+}
 
-    switch (orientation_)
-    {
-    case orientation::front:
-        return x >= word_x && x < word_x + len && y == word_y;
-    case orientation::back:
-        return x <= word_x && x > word_x - len && y == word_y;
-    case orientation::down:
-        return y >= word_y && y < word_y + len && x == word_x;
-    case orientation::up:
-        return y <= word_y && y > word_y - len && x == word_x;
-    case orientation::front_down:
-        return x >= word_x && x < word_x + len && y >= word_y && y < word_y + len && x - word_x == y - word_y;
-    case orientation::back_up:
-        return x <= word_x && x > word_x - len && y <= word_y && y > word_y - len && word_x - x == word_y - y;
-    case orientation::back_down:
-        return x <= word_x && x > word_x - len && y >= word_y && y < word_y + len && word_x - x == y - word_y;
-    case orientation::front_up:
-        return x >= word_x && x < word_x + len && y <= word_y && y > word_y - len && x - word_x == y - word_y;
-    default:
-        return false;
-    }
+auto word_search::cleanup(const std::string& str) -> std::string
+{
+    return str
+        | std::views::filter([](const char ch) { return std::isalpha(ch, std::locale::classic()); })
+        | std::views::transform([](const char ch) { return std::toupper(ch, std::locale::classic()); })
+        | std::ranges::to<std::string>();
 }

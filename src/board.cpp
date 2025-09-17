@@ -1,12 +1,16 @@
 #include "board.hpp"
 
 #include <algorithm>
-#include <iostream>
+#include <filesystem>
+#include <fstream>
 #include <ranges>
+#include <span>
+#include <utility>
 #include <vector>
 
-#include "console.hpp"
 #include "rnd.hpp"
+#include "ui.hpp"
+#include "ftxui/component/component.hpp"
 
 namespace rv = std::ranges::views;
 
@@ -57,14 +61,8 @@ auto word_search::board::words_found() const -> std::int64_t
 
 auto word_search::board::find_word(const word& search_word) -> word_state
 {
-    const auto it = std::ranges::find_if(words_, [&search_word](const word& w)
-    {
-        return w.str() == search_word.str()
-            && w.point() == search_word.point()
-            && w.orientation() == search_word.orientation();
-    });
-
-    if (it != words_.end())
+    const auto it = std::ranges::find_if(words_, [&search_word](const word& w) { return w == search_word; });
+    if (it == words_.end())
         return word_state::not_found;
 
     if (it->found())
@@ -74,281 +72,307 @@ auto word_search::board::find_word(const word& search_word) -> word_state
     return word_state::found;
 }
 
-auto word_search::board::fill_letters(std::vector<std::string>& words, const std::size_t max_num_words) -> void
+auto word_search::board::load_words(const std::vector<std::string>& words) -> void
 {
     const auto orientations = get_orientations(difficulty_);
-    std::size_t k = 0;
 
-    for (auto str : words | rv::transform(word::cleanup))
+    for (const auto& str : words | rv::transform(cleanup))
     {
-        if (k == max_num_words)
-            break;
-
         if (const auto l = str.length(); l > width_ || l > height_)
             continue;
 
         auto i = 0;
-        while (i < 20)
+        while (++i < 20)
         {
-            i++;
             const auto orientation = orientations[rnd::next(orientations.size())];
+            const auto point = random_pt(str, orientation);
 
-            const auto x = random_x(str, orientation);
-            if (!x.has_value())
-                continue;
-
-            const auto y = random_y(str, orientation);
-            if (!y.has_value())
-                continue;
-
-            if (word word{str, point_t{x.value(), y.value()}, orientation}; word_fits(word))
+            if (auto word = word_search::word{str, point, orientation}; word_fits(word))
             {
-                words_.emplace_back(word);
-                insert_word(word);
-                k++;
+                add_word(word);
                 break;
             }
         }
     }
 
-    for (const auto isspace = [](const char ch) { return std::isspace(ch, std::locale::classic()); };
-         auto& letter : letters_ | rv::filter(isspace))
+    static auto isspace = [](const char ch) { return std::isspace(ch, std::locale::classic()); };
+    for (auto& letter : letters_ | rv::filter(isspace))
     {
         letter = rnd::next<std::int8_t>('A', 'Z');
     }
 }
 
-auto word_search::board::show_words() const -> void
-{
-    const auto num_found = words_found();
-    console::gotoxy(2 * width_ + 20, 1);
-    std::print("Words found: {} of {}", num_found, words_.size());
-    if (difficulty_ == difficulty::easy)
-    {
-        console::gotoxy(2 * width_ + 50, 1);
-        std::print("Words to find:");
-    }
-    for (std::size_t i = 0; i < words_.size(); i++)
-    {
-        if (const auto& word = words_[i]; word.found())
-        {
-            console::set_foreground_color(console::ansi_color::green);
-            console::gotoxy(2 * width_ + 20, 3 + 2 * i);
-        }
-        else if (difficulty_ == difficulty::easy)
-        {
-            console::set_foreground_color(console::ansi_color::red);
-            console::gotoxy(2 * width_ + 50, 3 + 2 * i);
-            std::print("{}", word.str());
-        }
-        console::reset_color();
-    }
-}
-
-auto word_search::board::show_letters() const -> void
-{
-    constexpr auto x_start = 8;
-    constexpr auto y_start = 3;
-
-    console::gotoxy(x_start - 1, y_start - 1);
-    for (const auto i : rv::iota(0ul, width_))
-    {
-        std::print("{} ", i % 10);
-    }
-    std::println();
-    for (const auto i : rv::iota(0ul, height_))
-    {
-        std::print("    {} ", i % 10);
-        for (const auto j : rv::iota(0ul, width_))
-        {
-            if (const point_t point{j, i};
-                std::ranges::any_of(words_, [&point](const word& word) { return word.is_found_at(point); }))
-            {
-                console::set_foreground_color(console::ansi_color::yellow);
-            }
-            std::print("{} ", (*this)[j, i]);
-            console::reset_color();
-        }
-        std::println();
-        console::reset_color();
-    }
-}
-
-auto word_search::board::random_x(const std::string& word,
-                                  const orientation orientation) const -> std::optional<std::size_t>
+auto word_search::board::random_pt(const std::string& word, const orientation orientation) const -> point_t
 {
     const auto len = word.length();
-    if (len > width_)
-        return std::nullopt;
+    const auto [dx, dy] = orientation_offset(orientation);
 
-    std::size_t x;
-    switch (orientation)
+    // Compute inclusive ranges for the starting coordinate based on direction sign.
+    auto range_from = [len](const std::size_t size, const int d) -> std::pair<std::size_t, std::size_t>
     {
-    case orientation::down:
-    case orientation::up:
-        x = rnd::next(width_);
-        break;
-    case orientation::front:
-    case orientation::front_down:
-    case orientation::front_up:
-        x = rnd::next(width_ - len + 1);
-        break;
-    case orientation::back:
-    case orientation::back_down:
-    case orientation::back_up:
-        x = len - 1 + rnd::next(width_ - len + 1);
-        break;
-    default:
-        throw std::invalid_argument("Invalid orientation");
-    }
-    return x;
-}
+        switch (d)
+        {
+        case 0: return {0ul, size - 1}; // any column/row
+        case 1: return {0ul, size - len}; // forward
+        case -1: return {len - 1, size - 1}; // backward
+        default: std::unreachable();
+        }
+    };
 
-auto word_search::board::random_y(const std::string& word,
-                                  const orientation orientation) const -> std::optional<std::size_t>
-{
-    const auto len = word.length();
-    if (len > width_ or len > height_)
-    {
-        return std::nullopt;
-    }
+    const auto [x_lo, x_hi] = range_from(width_, dx);
+    const auto [y_lo, y_hi] = range_from(height_, dy);
 
-    std::size_t y;
-    switch (orientation)
-    {
-    case orientation::front:
-    case orientation::back:
-        y = rnd::next(height_);
-        break;
-    case orientation::down:
-    case orientation::front_down:
-    case orientation::back_down:
-        y = rnd::next(height_ - len + 1);
-        break;
-    case orientation::up:
-    case orientation::front_up:
-    case orientation::back_up:
-        y = len - 1 + rnd::next(height_ - len + 1); // Adjusted the range
-        break;
-    default:
-        throw std::invalid_argument("Invalid orientation");
-    }
-    return y;
+    const auto x = rnd::next(x_lo, x_hi);
+    const auto y = rnd::next(y_lo, y_hi);
+    return point_t{x, y};
 }
 
 auto word_search::board::word_fits(const word& word) const -> bool
 {
-    auto check_letter = [this](const char ch, const std::size_t x, const std::size_t y)
-    {
-        return (*this)[x, y] == ' ' or (*this)[x, y] == ch;
-    };
-
     const auto [x, y] = word.point();
-    for (std::size_t i = 0; i < word.length(); i++)
+    const auto [dx, dy] = orientation_offset(word.orientation());
+
+    for (auto i = 0ul; i < word.length(); ++i)
     {
-        const auto ch = word[i];
-        switch (word.orientation())
-        {
-        case orientation::front:
-            if (!check_letter(ch, x + i, y))
-                return false;
-            break;
-        case orientation::back:
-            if (!check_letter(ch, x - i, y))
-                return false;
-            break;
-        case orientation::down:
-            if (!check_letter(ch, x, y + i))
-                return false;
-            break;
-        case orientation::up:
-            if (!check_letter(ch, x, y - i))
-                return false;
-            break;
-        case orientation::front_down:
-            if (!check_letter(ch, x + i, y + i))
-                return false;
-            break;
-        case orientation::back_up:
-            if (!check_letter(ch, x - i, y - i))
-                return false;
-            break;
-        case orientation::back_down:
-            if (!check_letter(ch, x - i, y + i))
-                return false;
-            break;
-        case orientation::front_up:
-            if (!check_letter(ch, x + i, y - i))
-                return false;
-            break;
-        default:
-            throw std::invalid_argument("Invalid orientation");
-        }
+        const auto nx = x + i * dx;
+        const auto ny = y + i * dy;
+        if (const char cell = (*this)[nx, ny]; cell != ' ' && cell != word[i])
+            return false;
     }
     return true;
 }
 
-auto word_search::board::insert_word(const word& word) -> void
+auto word_search::board::add_word(const word& word) -> void
 {
+    words_.emplace_back(word);
     const auto [x, y] = word.point();
-    const auto [dx, dy] = orientation_offsets()[std::to_underlying(word.orientation())];
+    const auto [dx, dy] = orientation_offset(word.orientation());
 
-    auto px = x;
-    auto py = y;
-    for (const auto ch : word)
+    for (auto i = 0ul; i < word.length(); ++i)
     {
-        (*this)[px, py] = ch;
-        px += dx;
-        py += dy;
+        const auto nx = x + i * dx;
+        const auto ny = y + i * dy;
+        (*this)[nx, ny] = word[i];
     }
 }
 
-auto word_search::check_dimension(const dimension_t dimension, const difficulty difficulty) -> bool
+auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
 {
-    switch (difficulty)
+    using namespace ftxui;
+
+    // UI state
+    const std::vector<std::string> diff_labels = {"Easy", "Medium", "Hard"};
+    int diff_index = 0; // 0: Easy, 1: Medium, 2: Hard
+    std::string width_str, height_str;
+    std::string error_msg;
+
+    // Result holders
+    auto width = 0ul, height = 0ul;
+    auto difficulty = difficulty::easy;
+    bool accepted = false;
+
+    // Widgets
+    auto rb_diff = Radiobox(&diff_labels, &diff_index);
+    auto in_width = Input(&width_str, "width (e.g., 10)");
+    auto in_height = Input(&height_str, "height (e.g., 10)");
+
+    auto check_dimension = [&](const std::size_t dimension)
     {
-    case difficulty::easy:
-        return dimension >= 10;
-    case difficulty::medium:
-        return dimension >= 15;
-    case difficulty::hard:
-        return dimension >= 20;
+        switch (difficulty)
+        {
+        case difficulty::easy:
+            return dimension >= 10;
+        case difficulty::medium:
+            return dimension >= 15;
+        case difficulty::hard:
+            return dimension >= 20;
+        }
+        throw std::invalid_argument("Invalid difficulty");
+    };
+
+    auto btn_ok = Button("OK", [&]
+    {
+        difficulty = static_cast<word_search::difficulty>(diff_index + 1);
+        try
+        {
+            width = std::stoul(width_str);
+            height = std::stoul(height_str);
+        }
+        catch (...)
+        {
+            error_msg = "Width and height must be positive integers.";
+            return;
+        }
+        if (!check_dimension(width))
+        {
+            error_msg = "Invalid width for the selected difficulty.";
+            return;
+        }
+        if (!check_dimension(height))
+        {
+            error_msg = "Invalid height for the selected difficulty.";
+            return;
+        }
+
+        accepted = true;
+        screen.Exit();
+    });
+
+    auto btn_cancel = Button("Cancel", [&]
+    {
+        throw std::runtime_error("Board creation cancelled by user.");
+    });
+
+    const auto container = Container::Vertical({
+        rb_diff,
+        in_width,
+        in_height,
+        Container::Horizontal({btn_ok, btn_cancel})
+    });
+
+    constexpr std::array hints = {
+        "The board size should be at least 10 x 10 for Easy.",
+        "The board size should be at least 15 x 15 for Medium.",
+        "The board size should be at least 20 x 20 for Hard.",
+    };
+
+    const auto view = Renderer(container, [&]
+    {
+        return vbox({
+            text("Create Board") | bold | center,
+            separator(),
+            hbox(text("Difficulty: ") | bold, rb_diff->Render()) | center,
+            separator(),
+            text(hints[diff_index]) | dim | center, // only dynamic part (plus error below)
+            separator(),
+            hbox(text("Width:  ") | bold, in_width->Render()) | center,
+            hbox(text("Height: ") | bold, in_height->Render()) | center,
+            (error_msg.empty() ? filler() : (separator(), text(error_msg) | color(Color::Red) | center)),
+            separator(),
+            hbox({
+                filler(),
+                btn_ok->Render() | bold,
+                text("  "),
+                btn_cancel->Render(),
+                filler(),
+            }),
+        }) | border | flex | center;
+    });
+    screen.Loop(view);
+
+    if (!accepted)
+    {
+        throw std::runtime_error("Board creation aborted.");
     }
-    throw std::invalid_argument("Invalid difficulty");
-}
-
-auto word_search::new_board() -> board
-{
-    std::println("Now, let's create the board.");
-    std::println("What is the difficulty?");
-    std::println("\t1 - Easy");
-    std::println("\t2 - Medium");
-    std::println("\t3 - Hard");
-    std::print("Option: ");
-    std::underlying_type_t<difficulty> diff;
-    std::cin >> diff;
-    std::cin.ignore();
-    const auto difficulty = static_cast<word_search::difficulty>(diff);
-
-    std::println(
-        "\nThe board size should be at least 10 x 10 for easy mode,"
-        " 15 x 15 for medium mode,"
-        " and 20 x 20 for hard mode."
-    );
-
-    std::print("\nWhat is the width of the board? ");
-    dimension_t width;
-    std::cin >> width;
-    std::cin.ignore();
-    if (!check_dimension(width, difficulty))
-        throw std::invalid_argument("Invalid width");
-
-    std::print("\nWhat is the height of the board? ");
-    dimension_t height;
-    std::cin >> height;
-    std::cin.ignore();
-    if (!check_dimension(height, difficulty))
-        throw std::invalid_argument("Invalid height");
 
     return board{width, height, difficulty};
+}
+
+struct line : std::string
+{
+    using std::string::string;
+
+    friend std::istream& operator>>(std::istream& s, line& l)
+    {
+        std::getline(s, l);
+        return s;
+    }
+};
+
+auto word_search::board::pick_theme(ftxui::ScreenInteractive& screen) -> void
+{
+    const std::vector<std::string> entries = {
+        "Portugal",
+        "United States of America",
+    };
+    const auto choice = ui::select(screen, "Pick the theme", entries);
+    std::filesystem::path filename;
+    switch (choice)
+    {
+    case 0:
+        filename = "data/portugal.txt";
+        break;
+    case 1:
+        filename = "data/usa.txt";
+        break;
+    default:
+        throw std::runtime_error("No theme selected.");
+    }
+
+    std::ifstream file(filename);
+    if (!file)
+    {
+        throw std::filesystem::filesystem_error{
+            "Could not read file.",
+            filename,
+            std::make_error_code(std::errc::io_error)
+        };
+    }
+
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(file, line))
+    {
+        lines.push_back(line);
+    }
+
+    load_words(lines);
+}
+
+auto word_search::board::letters_panel() const -> ftxui::Table
+{
+    using namespace ftxui;
+    namespace rv = std::ranges::views;
+
+    auto cell = [](const std::string& s) { return text(s) | center | size(WIDTH, EQUAL, 2); };
+    auto letter_cell = [&](const char ch) { return cell(std::string(1, ch)); };
+    auto coord_cell = [&](const std::size_t dimension) { return cell(std::to_string(dimension)) | dim; };
+
+    auto header = rv::iota(0ul, width_)
+        | rv::transform(coord_cell)
+        | std::ranges::to<Elements>();
+    header.insert(header.begin(), text("Y\\X")); // Add empty column for index.
+
+    auto rows = std::vector<Elements>{std::move(header)};
+
+    for (const auto row : rv::iota(0ul, height_))
+    {
+        auto row_cells = rv::iota(0ul, width_)
+            | rv::transform([this, row](const auto col) { return (*this)[col, row]; })
+            | rv::transform(letter_cell)
+            | std::ranges::to<Elements>();
+
+        // Add row index cell
+        row_cells.insert(row_cells.begin(), coord_cell(row));
+
+        rows.push_back(row_cells);
+    }
+
+    for (auto& word : words_ | rv::filter([](const auto& w) { return w.found(); }))
+    {
+        const auto [dx, dy] = orientation_offset(word.orientation());
+        const auto [x, y] = word.point();
+
+        for (const auto i : rv::iota(0ul, word.length()))
+        {
+            const auto nx = x + i * dx;
+            const auto ny = y + i * dy;
+            rows[ny + 1][nx + 1] |= color(Color::Yellow);
+        }
+    }
+
+    auto table = Table(rows);
+    auto cells = table.SelectAll();
+    cells.Separator(LIGHT);
+    cells.Border(LIGHT);
+
+    auto x_row = table.SelectRow(0);
+    x_row.SeparatorHorizontal(LIGHT);
+    x_row.Border(DOUBLE);
+
+    auto y_col = table.SelectColumn(0);
+    y_col.SeparatorVertical(LIGHT);
+    y_col.Border(DOUBLE);
+
+    return table;
 }

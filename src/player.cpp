@@ -1,14 +1,12 @@
 #include "player.hpp"
 
-#include <iostream>
+#include "ui.hpp"
+#include "ftxui/component/component.hpp"
 
 auto word_search::player::update_score(const std::int32_t points) -> void
 {
-    if (score_ >= points)
-    {
-        score_ -= points;
-    }
-    else
+    score_ += points;
+    if (score_ < 0 && level_ == level::beginner)
     {
         score_ = 0;
     }
@@ -17,13 +15,14 @@ auto word_search::player::update_score(const std::int32_t points) -> void
 auto word_search::player::final_score(const std::chrono::seconds elapsed,
                                       const std::int64_t num_words) const -> std::int64_t
 {
+    using namespace std::chrono_literals;
     switch (level_)
     {
     case level::beginner:
         return score_;
     case level::expert:
         {
-            const auto max_time = num_words * std::chrono::seconds{60};
+            const auto max_time = num_words * 60s;
             const auto bonus = (max_time - elapsed) / 10;
             return score_ + bonus.count();
         }
@@ -31,24 +30,84 @@ auto word_search::player::final_score(const std::chrono::seconds elapsed,
     throw std::invalid_argument("Invalid level.");
 }
 
-auto word_search::new_player() -> player
+auto word_search::player::new_player(ftxui::ScreenInteractive& screen) -> player
 {
-    std::print("What is your name? ");
+    using namespace ftxui;
+
     std::string name;
-    std::getline(std::cin, name);
+    std::string age_str;
+    const std::vector<std::string> levels = {"Beginner", "Expert"};
+    int level_idx = 0; // 0 -> Beginner, 1 -> Expert
 
-    std::print("\nWhat is your age? ");
+    bool cancelled = false;
+
+    auto in_name = Input(&name, "your name");
+    auto in_age = Input(&age_str, "age (number)");
+    auto rb_level = Radiobox(&levels, &level_idx);
+
+    auto btn_ok = Button("OK", [&]
+    {
+        screen.Exit();
+    });
+    auto btn_cancel = Button("Cancel", [&]
+    {
+        cancelled = true;
+        screen.Exit();
+    });
+
+    const auto container = Container::Vertical({
+        in_name,
+        in_age,
+        rb_level,
+        Container::Horizontal({btn_ok, btn_cancel}),
+    });
+
+    const auto view = Renderer(container, [&]
+    {
+        return vbox({
+            text("New Player") | bold | center,
+            separator(),
+            hbox(text("Name: ") | bold, in_name->Render()) | center,
+            hbox(text("Age:  ") | bold, in_age->Render()) | center,
+            separator(),
+            hbox(text("Level:") | bold, rb_level->Render()) | center,
+            separator(),
+            hbox({
+                filler(),
+                btn_ok->Render() | bold,
+                text("  "),
+                btn_cancel->Render(),
+                filler(),
+            }),
+        }) | border | center | size(WIDTH, GREATER_THAN, 40);
+    });
+    screen.Loop(view);
+
+    constexpr std::string default_name = "Jean Doe";
+    constexpr std::uint16_t default_age = 99;
+
+    if (cancelled)
+    {
+        return player{default_name, default_age, level::beginner};
+    }
+
+    if (name.empty())
+    {
+        name = default_name;
+    }
+
     std::uint16_t age;
-    std::cin >> age;
-    std::cin.ignore();
+    try
+    {
+        age = static_cast<std::uint16_t>(std::stoul(age_str));
+    }
+    catch (...)
+    {
+        age = default_age;
+    }
 
-    std::println("\nWhat is your level?");
-    std::println("\t1 - Beginner");
-    std::println("\t2 - Expert");
-    std::print("Option: ");
-    std::underlying_type_t<level> level;
-    std::cin >> level;
-    std::cin.ignore();
+    // Map 0/1 -> 1/2 to match previous numeric level inputs.
+    const auto level = static_cast<word_search::level>(level_idx + 1);
 
-    return player{std::move(name), age, static_cast<word_search::level>(level)};
+    return player{std::move(name), age, level};
 }

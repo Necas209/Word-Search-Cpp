@@ -3,130 +3,37 @@
 #include <fstream>
 #include <iostream>
 #include <ranges>
-#include <thread>
 
-#include "console.hpp"
+#include <ftxui/component/component.hpp>
+#include <utility>
 
-using namespace std::chrono_literals;
+#include "ui.hpp"
+
 namespace rv = std::ranges::views;
 
-auto word_search::load_words() -> std::vector<std::string>
-{
-    std::println("Pick the theme of the word search:");
-    std::println("\t1 -> Portugal");
-    std::println("\t2 -> United States of America");
-    std::uint16_t option;
-
-    std::filesystem::path filename;
-    while (filename.empty())
-    {
-        std::print("Option: ");
-        if (!(std::cin >> option))
-        {
-            std::cin.clear();
-        }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
-        switch (option)
-        {
-        case 1:
-            std::println("Loading the districts of Portugal...");
-            filename = "data/portugal.txt";
-            break;
-        case 2:
-            std::println("Loading the United States of America...");
-            filename = "data/usa.txt";
-            break;
-        default:
-            std::println("Invalid option. Please enter 1 or 2.");
-        }
-    }
-
-    std::ifstream file(filename);
-    if (!file)
-    {
-        throw std::filesystem::filesystem_error{
-            "Could not read file.",
-            filename,
-            std::make_error_code(std::errc::io_error)
-        };
-    }
-
-    std::vector<std::string> words;
-    std::string line;
-    while (std::getline(file, line))
-    {
-        words.push_back(line);
-    }
-    return words;
-}
-
-auto word_search::game::play() -> void
+auto word_search::game::play(ftxui::ScreenInteractive& screen) -> void
 {
     start_ = std::chrono::high_resolution_clock::now();
     while (!board_.solved())
     {
-        board_.show_letters();
-        board_.show_words();
-
-        console::gotoxy(1, board_.height() + 5);
-
-        std::println("Game Menu:");
-        std::println("\t1 -> Find a word");
-        std::println("\t2 -> Save the game");
-        std::println("\t3 -> Exit");
-        std::print("Option: ");
-        int option;
-        std::cin >> option;
-        std::cin.ignore();
-
-        switch (option)
+        save_game();
+        switch (const auto word = main_loop(screen); board_.find_word(word))
         {
-        case 1:
-            find_word();
+        case word_state::not_found:
+            player_.update_score(-5);
             break;
-        case 2:
-            save_game();
+        case word_state::found:
+            player_.update_score(10);
             break;
-        case 3:
-            std::println("Exiting the game...");
-            pause_game();
-            return;
-        default:
-            std::cout << "Invalid option.\n";
+        case word_state::already_found:
             break;
         }
-
-        std::this_thread::sleep_for(1s);
-        console::clear();
     }
-
-    const auto end = std::chrono::high_resolution_clock::now();
-    elapsed_ += end - start_;
-
-    console::clear();
-    board_.show_letters();
-    board_.show_words();
-
-    console::gotoxy(0, board_.height() + 5);
-
-    const auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(elapsed_);
-    std::println("{}'s final score: {}.", player_.name(),
-                 player_.final_score(elapsed_seconds, board_.words_found()));
-    std::println("\nYou took {} to finish the game.", elapsed_seconds);
-    console::pause();
-}
-
-auto word_search::game::pause_game() -> void
-{
-    const auto end = std::chrono::high_resolution_clock::now();
-    elapsed_ += end - start_;
-    save_game();
+    end_screen(screen);
 }
 
 auto word_search::game::save_game(const std::filesystem::path& filename) const -> void
 {
-    std::println("Saving the game...");
     std::ofstream file{filename};
     if (!file)
     {
@@ -139,67 +46,28 @@ auto word_search::game::save_game(const std::filesystem::path& filename) const -
 
     const nlohmann::json j = *this;
     file << std::setw(2) << j;
-    std::println("The game was saved successfully.");
 }
 
-auto word_search::game::find_word() -> void
+auto word_search::game::new_game(ftxui::ScreenInteractive& screen) -> game
 {
-    std::print("\nWhat is your word? ");
-    std::string str;
-    std::getline(std::cin, str);
+    auto player = player::new_player(screen);
+    auto board = board::new_board(screen);
+    board.pick_theme(screen);
 
-    std::size_t x, y;
-    std::println("\nWhere is it?");
-    std::print("x: ");
-    std::cin >> x;
-    std::cin.ignore();
-    std::print("y: ");
-    std::cin >> y;
-    std::cin.ignore();
-
-    switch (board_.find_word(word{word::cleanup(str), point{x, y}, {}}))
-    {
-    case word_state::not_found:
-        std::println("\nYou didn't find the word.");
-        player_.update_score(-5);
-        break;
-    case word_state::found:
-        std::println("\nYou found the word!");
-        player_.update_score(10);
-        break;
-    case word_state::already_found:
-        std::println("The word has already been found.");
-        break;
-    }
+    return game{std::move(board), std::move(player)};
 }
 
-auto word_search::new_game() -> void
+auto word_search::game::load_game(const std::filesystem::path& filename) -> game
 {
-    std::println("Starting a new game...");
-
-    auto player = new_player();
-    std::cout << std::endl;
-
-    auto words = load_words();
-    console::pause();
-    console::clear();
-
-    auto board = new_board();
-    board.fill_letters(words, 10);
-    console::clear();
-
-    game game{std::move(board), std::move(player)};
-    game.play();
-}
-
-auto word_search::load_game(const std::filesystem::path& filename) -> void
-{
-    std::println("Loading a game...");
     if (!std::filesystem::exists(filename))
     {
-        std::println("There is no save.");
-        return;
+        throw std::filesystem::filesystem_error{
+            "File does not exist.",
+            filename,
+            std::make_error_code(std::errc::no_such_file_or_directory)
+        };
     }
+
     std::ifstream file{filename};
     if (!file)
     {
@@ -212,6 +80,188 @@ auto word_search::load_game(const std::filesystem::path& filename) -> void
 
     nlohmann::json j;
     file >> j;
-    auto game = j.get<word_search::game>();
-    game.play();
+    return j.get<game>();
+}
+
+auto word_search::game::end_screen(ftxui::ScreenInteractive& screen) const -> void
+{
+    using namespace ftxui;
+    const auto summary = Renderer([this]
+    {
+        const auto elapsed_seconds = this->elapsed_seconds();
+        const auto final_score = player_.final_score(elapsed_seconds, board_.words_found());
+        const auto score_text = std::format("{}'s final score: {}.", player_.name(), final_score);
+
+        return vbox({
+            text("Summary") | bold | center,
+            separator(),
+            hbox(text("Words found: ") | dim, text(std::to_string(board_.words_found())) | bold),
+            hbox(text("Time: ") | dim, text(std::format("{}", elapsed_seconds)) | bold),
+            separator(),
+            text(score_text) | bold,
+            separator(),
+            text("Press Enter to continue.") | dim | center,
+        }) | border | center;
+    });
+
+    const auto component = CatchEvent(summary, [&](const Event& e)
+    {
+        if (e == Event::Return || e == Event::Character(' '))
+        {
+            screen.Exit();
+            return true;
+        }
+        return false;
+    });
+    screen.Loop(component);
+}
+
+auto word_search::game::main_loop(ftxui::ScreenInteractive& screen) -> word
+{
+    using namespace ftxui;
+    using namespace std::chrono_literals;
+
+    word word;
+    const auto find_word_panel = game::find_word_panel(screen, word);
+
+    bool running = true;
+    auto screenRedraw = std::thread([&]
+    {
+        while (running)
+        {
+            screen.PostEvent(Event::Custom);
+            std::this_thread::sleep_for(50ms); // Prevent High CPU Usage.
+        }
+    });
+
+    // Compose letters and words into a single screen.
+    const auto renderer = Renderer(find_word_panel, [=, this]
+    {
+        const auto end = std::chrono::high_resolution_clock::now();
+        elapsed_ += end - start_;
+        start_ = end;
+
+        return hbox({
+            find_word_panel->Render(),
+            separator(),
+            vbox({
+                text("Board") | bold | center,
+                separator(),
+                board_.letters_panel().Render() | flex | size(WIDTH, GREATER_THAN, 50)
+            }),
+            separator(),
+            vbox({
+                text("Progress") | bold | center,
+                separator(),
+                progress_panel(),
+            }),
+        }) | border | center;
+    });
+
+    screen.Loop(renderer);
+    running = false;
+    screenRedraw.join();
+
+    return word;
+}
+
+auto word_search::game::progress_panel() const -> ftxui::Element
+{
+    using namespace ftxui;
+
+    const auto num_found = board_.words_found();
+
+    auto label = [](std::string s) { return text(std::move(s)) | bold | align_right; };
+
+    const auto& words = board_.words();
+    auto items = Elements{
+        gridbox({
+            {label("Player: "), text(player_.name())},
+            {label("Age: "), text(std::to_string(player_.age()))},
+            {label("Score: "), text(std::to_string(player_.score()))},
+            {label("Time: "), text(std::format("{}", elapsed_seconds()))},
+        }),
+        separator(),
+        hbox({
+            text("Words: ") | bold,
+            text(std::to_string(num_found)) | bold,
+            text(" of ") | dim,
+            text(std::to_string(words.size())) | bold,
+        }),
+    };
+
+    // List words: found -> green; in easy mode, show unfound in red; otherwise hide unfound.
+    for (const auto& word : words)
+    {
+        if (word.found())
+        {
+            items.push_back(text(word.str()) | color(Color::Green));
+        }
+        else if (board_.difficulty() == difficulty::easy)
+        {
+            items.push_back(text(word.str()) | color(Color::Red));
+        }
+    }
+
+    return vbox(items) | flex | size(WIDTH, GREATER_THAN, 30);
+}
+
+auto word_search::game::find_word_panel(ftxui::ScreenInteractive& screen, word& word) -> ftxui::Component
+{
+    using namespace ftxui;
+
+    struct State
+    {
+        std::string str;
+        std::string sx;
+        std::string sy;
+        int orientation = 0;
+    };
+    auto state = std::make_shared<State>();
+
+    const auto in_word = Input(&state->str, "enter word");
+    const auto in_x = Input(&state->sx, "x coordinate");
+    const auto in_y = Input(&state->sy, "y coordinate");
+
+    auto option = MenuOption::Vertical();
+    option.on_enter = [&, state]
+    {
+        try
+        {
+            const auto x = std::stoul(state->sx);
+            const auto y = std::stoul(state->sy);
+            word = word_search::word{
+                cleanup(state->str),
+                point{x, y},
+                static_cast<orientation>(state->orientation)
+            };
+            screen.Exit();
+        }
+        catch (...)
+        {
+        }
+    };
+    const auto entries = orientation_names() | std::ranges::to<std::vector<std::string>>();
+    const auto orientation_menu = Menu(entries, &state->orientation, option);
+
+    const auto container = Container::Vertical({
+        in_word,
+        in_x,
+        in_y,
+        Container::Horizontal({orientation_menu}),
+    });
+
+    return Renderer(container, [=]
+    {
+        return vbox({
+            text("Find Word") | bold | center,
+            separator(),
+            gridbox({
+                {text("Word: ") | align_right | bold, in_word->Render()},
+                {text("Coord. X: ") | align_right | bold, in_x->Render()},
+                {text("Coord. Y: ") | align_right | bold, in_y->Render()},
+                {text("Orientation: ") | align_right | bold, orientation_menu->Render()},
+            })
+        }) | flex | size(WIDTH, GREATER_THAN, 30);
+    });
 }

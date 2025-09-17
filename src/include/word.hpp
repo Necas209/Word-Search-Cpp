@@ -20,7 +20,11 @@ namespace word_search
         front_up
     };
 
-    constexpr auto orientation_offsets() -> std::span<const point<int>>;
+    auto orientation_names() -> std::span<const std::string_view>;
+
+    auto orientation_offset(orientation orientation) -> std::pair<int, int>;
+
+    auto cleanup(const std::string& str) -> std::string;
 
     class word final
     {
@@ -46,67 +50,36 @@ namespace word_search
 
         auto mark_as_found() -> void { found_ = true; }
 
-        [[nodiscard]] auto is_found_at(const point_t& point) const -> bool;
-
         [[nodiscard]] auto begin() const -> std::string::const_iterator { return str_.begin(); }
         [[nodiscard]] auto end() const -> std::string::const_iterator { return str_.end(); }
 
         auto operator[](const std::size_t idx) const -> char { return str_[idx]; }
 
-        constexpr static auto cleanup(const std::string& str) -> std::string;
+        [[nodiscard]] auto operator==(const word& other) const -> bool
+        {
+            return str_ == other.str_ && point_ == other.point_ && orientation_ == other.orientation_;
+        }
+
+        [[nodiscard]] auto operator!=(const word& other) const -> bool { return !(*this == other); }
 
         friend void to_json(nlohmann::json& j, const word& word)
         {
             j = nlohmann::json{
-                {"string", word.str_},
+                {"str", word.str_},
                 {"orientation", word.orientation_},
-                {"initial_pt", word.point_},
-                {"is_found", word.found_},
+                {"point", word.point_},
+                {"found", word.found_},
             };
         }
 
         friend void from_json(const nlohmann::json& j, word& word)
         {
-            j.at("string").get_to(word.str_);
+            j.at("str").get_to(word.str_);
             j.at("orientation").get_to(word.orientation_);
-            j.at("initial_pt").get_to(word.point_);
-            j.at("is_found").get_to(word.found_);
+            j.at("point").get_to(word.point_);
+            j.at("found").get_to(word.found_);
         }
     };
 }
-
-constexpr auto word_search::orientation_offsets() -> std::span<const point<int>>
-{
-    static constexpr std::array orientation_offsets = {
-        point{0, 0}, // none
-        point{1, 0}, // front
-        point{-1, 0}, // back
-        point{0, 1}, // down
-        point{0, -1}, // up
-        point{1, 1}, // front_down
-        point{-1, -1}, // back_up
-        point{-1, 1}, // back_down
-        point{1, -1} // front_up
-    };
-    return orientation_offsets;
-}
-
-constexpr auto word_search::word::cleanup(const std::string& str) -> std::string
-{
-    return str
-        | std::views::filter([](const char ch) { return std::isalpha(ch, std::locale::classic()); })
-        | std::views::transform([](const char ch) { return std::toupper(ch, std::locale::classic()); })
-        | std::ranges::to<std::string>();
-}
-
-template <>
-struct std::formatter<word_search::orientation> : std::formatter<std::underlying_type_t<word_search::orientation>>
-{
-    auto format(const word_search::orientation& orientation, std::format_context& ctx) const
-    {
-        return std::formatter<std::underlying_type_t<word_search::orientation>>::format(
-            std::to_underlying(orientation), ctx);
-    }
-};
 
 #endif //WORD_SEARCH_WORD_HPP

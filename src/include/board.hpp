@@ -2,6 +2,8 @@
 #define WORD_SEARCH_BOARD_HPP
 
 #include "word.hpp"
+#include "ftxui/component/screen_interactive.hpp"
+#include "ftxui/dom/table.hpp"
 
 namespace word_search
 {
@@ -21,15 +23,13 @@ namespace word_search
 
     auto get_orientations(difficulty difficulty) -> std::span<const orientation>;
 
-    using dimension_t = std::size_t;
-
     class board final
     {
-        using words_t = std::vector<word>;
+        using dimension_t = std::size_t;
         dimension_t width_{};
         dimension_t height_{};
         std::string letters_;
-        words_t words_{};
+        std::vector<word> words_{};
         difficulty difficulty_{};
 
     public:
@@ -42,15 +42,15 @@ namespace word_search
 
         [[nodiscard]] auto width() const -> dimension_t { return width_; }
         [[nodiscard]] auto height() const -> dimension_t { return height_; }
-        [[nodiscard]] auto words() const -> const words_t& { return words_; }
-        [[nodiscard]] auto words() -> words_t& { return words_; }
+        [[nodiscard]] auto words() const -> const std::vector<word>& { return words_; }
+        [[nodiscard]] auto difficulty() const -> difficulty { return difficulty_; }
 
-        [[nodiscard]] auto operator[](const std::size_t x, const std::size_t y) const -> char
+        [[nodiscard]] auto operator[](const dimension_t x, const dimension_t y) const -> char
         {
             return letters_[y * width_ + x];
         }
 
-        [[nodiscard]] auto operator[](const std::size_t x, const std::size_t y) -> char&
+        [[nodiscard]] auto operator[](const dimension_t x, const dimension_t y) -> char&
         {
             return letters_[y * width_ + x];
         }
@@ -61,11 +61,7 @@ namespace word_search
 
         [[nodiscard]] auto find_word(const word& search_word) -> word_state;
 
-        auto fill_letters(std::vector<std::string>& words, std::size_t max_num_words) -> void;
-
-        auto show_words() const -> void;
-
-        auto show_letters() const -> void;
+        auto load_words(const std::vector<std::string>& words) -> void;
 
         friend void from_json(const nlohmann::json& j, board& board)
         {
@@ -87,21 +83,19 @@ namespace word_search
             };
         }
 
-    private:
-        [[nodiscard]] auto random_x(const std::string& word,
-                                    orientation orientation) const -> std::optional<std::size_t>;
+        [[nodiscard]] static auto new_board(ftxui::ScreenInteractive& screen) -> board;
 
-        [[nodiscard]] auto random_y(const std::string& word,
-                                    orientation orientation) const -> std::optional<std::size_t>;
+        auto pick_theme(ftxui::ScreenInteractive& screen) -> void;
+
+        [[nodiscard]] auto letters_panel() const -> ftxui::Table;
+
+    private:
+        [[nodiscard]] auto random_pt(const std::string& word, orientation orientation) const -> point_t;
 
         [[nodiscard]] auto word_fits(const word& word) const -> bool;
 
-        auto insert_word(const word& word) -> void;
+        auto add_word(const word& word) -> void;
     };
-
-    auto check_dimension(dimension_t dimension, difficulty difficulty) -> bool;
-
-    auto new_board() -> board;
 }
 
 #endif //WORD_SEARCH_BOARD_HPP

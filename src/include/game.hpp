@@ -5,6 +5,8 @@
 
 #include "board.hpp"
 #include "player.hpp"
+#include "ftxui/component/component.hpp"
+#include "ftxui/component/screen_interactive.hpp"
 
 template <typename Rep, typename Ratio>
 struct nlohmann::adl_serializer<std::chrono::duration<Rep, Ratio>>
@@ -24,8 +26,6 @@ struct nlohmann::adl_serializer<std::chrono::duration<Rep, Ratio>>
 
 namespace word_search
 {
-    auto load_words() -> std::vector<std::string>;
-
     class game final
     {
         using time_point_t = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -35,8 +35,7 @@ namespace word_search
         time_point_t start_{};
         time_point_t::duration elapsed_{};
 
-    public
-    :
+    public:
         constexpr game() noexcept = default;
 
         constexpr explicit game(board board, player player) noexcept
@@ -44,13 +43,13 @@ namespace word_search
         {
         }
 
-        auto play() -> void;
+        auto play(ftxui::ScreenInteractive& screen) -> void;
 
-        auto pause_game() -> void;
+        auto save_game(const std::filesystem::path& filename = save_file()) const -> void;
 
-        auto save_game(const std::filesystem::path& filename = "data/save.json") const -> void;
+        [[nodiscard]] static auto new_game(ftxui::ScreenInteractive& screen) -> game;
 
-        auto find_word() -> void;
+        [[nodiscard]] static auto load_game(const std::filesystem::path& filename = save_file()) -> game;
 
         friend void from_json(const nlohmann::json& j, game& game)
         {
@@ -67,11 +66,26 @@ namespace word_search
                 {"player", game.player_},
             };
         }
+
+        [[nodiscard]] static constexpr auto save_file() noexcept -> std::filesystem::path
+        {
+            return "data/save.json";
+        }
+
+    private:
+        [[nodiscard]] auto elapsed_seconds() const -> std::chrono::seconds
+        {
+            return std::chrono::duration_cast<std::chrono::seconds>(elapsed_);
+        }
+
+        [[nodiscard]] auto main_loop(ftxui::ScreenInteractive& screen) -> word;
+
+        auto end_screen(ftxui::ScreenInteractive& screen) const -> void;
+
+        [[nodiscard]] auto progress_panel() const -> ftxui::Element;
+
+        [[nodiscard]] static auto find_word_panel(ftxui::ScreenInteractive& screen, word& word) -> ftxui::Component;
     };
-
-    auto new_game() -> void;
-
-    auto load_game(const std::filesystem::path& filename = "data/save.json") -> void;
 }
 
 #endif //WORD_SEARCH_GAME_HPP
