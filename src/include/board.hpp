@@ -7,7 +7,7 @@
 
 namespace word_search
 {
-    enum class difficulty : std::uint16_t
+    enum class difficulty_t : std::uint16_t
     {
         easy = 1,
         medium = 2,
@@ -21,7 +21,7 @@ namespace word_search
         already_found = 2,
     };
 
-    auto get_orientations(difficulty difficulty) -> std::span<const orientation>;
+    auto get_orientations(difficulty_t difficulty) -> std::span<const orientation>;
 
     class board final
     {
@@ -30,12 +30,12 @@ namespace word_search
         dimension_t height_{};
         std::string letters_;
         std::vector<word> words_{};
-        difficulty difficulty_{};
+        difficulty_t difficulty_{};
 
     public:
         constexpr board() noexcept = default;
 
-        constexpr explicit board(const dimension_t width, const dimension_t height, const difficulty difficulty)
+        constexpr explicit board(const dimension_t width, const dimension_t height, const difficulty_t difficulty)
             noexcept : width_(width), height_(height), letters_(width * height, ' '), difficulty_(difficulty)
         {
         }
@@ -43,7 +43,7 @@ namespace word_search
         [[nodiscard]] auto width() const -> dimension_t { return width_; }
         [[nodiscard]] auto height() const -> dimension_t { return height_; }
         [[nodiscard]] auto words() const -> const std::vector<word>& { return words_; }
-        [[nodiscard]] auto difficulty() const -> difficulty { return difficulty_; }
+        [[nodiscard]] auto difficulty() const -> difficulty_t { return difficulty_; }
 
         [[nodiscard]] auto operator[](const dimension_t x, const dimension_t y) const -> char
         {

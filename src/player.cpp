@@ -6,7 +6,7 @@
 auto word_search::player::update_score(const std::int32_t points) -> void
 {
     score_ += points;
-    if (score_ < 0 && level_ == level::beginner)
+    if (score_ < 0 && level_ == level_t::beginner)
     {
         score_ = 0;
     }
@@ -18,9 +18,9 @@ auto word_search::player::final_score(const std::chrono::seconds elapsed,
     using namespace std::chrono_literals;
     switch (level_)
     {
-    case level::beginner:
+    case level_t::beginner:
         return score_;
-    case level::expert:
+    case level_t::expert:
         {
             const auto max_time = num_words * 60s;
             const auto bonus = (max_time - elapsed) / 10;
@@ -88,7 +88,7 @@ auto word_search::player::new_player(ftxui::ScreenInteractive& screen) -> player
 
     if (cancelled)
     {
-        return player{default_name, default_age, level::beginner};
+        return player{default_name, default_age, level_t::beginner};
     }
 
     if (name.empty())
@@ -107,7 +107,7 @@ auto word_search::player::new_player(ftxui::ScreenInteractive& screen) -> player
     }
 
     // Map 0/1 -> 1/2 to match previous numeric level inputs.
-    const auto level = static_cast<word_search::level>(level_idx + 1);
+    const auto level = static_cast<word_search::level_t>(level_idx + 1);
 
     return player{std::move(name), age, level};
 }

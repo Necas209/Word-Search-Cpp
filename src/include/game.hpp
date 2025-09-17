@@ -45,11 +45,11 @@ namespace word_search
 
         auto play(ftxui::ScreenInteractive& screen) -> void;
 
-        auto save_game(const std::filesystem::path& filename = save_file()) const -> void;
+        auto save_game(const std::filesystem::path& filename) const -> void;
 
         [[nodiscard]] static auto new_game(ftxui::ScreenInteractive& screen) -> game;
 
-        [[nodiscard]] static auto load_game(const std::filesystem::path& filename = save_file()) -> game;
+        [[nodiscard]] static auto load_game(const std::filesystem::path& filename) -> game;
 
         friend void from_json(const nlohmann::json& j, game& game)
         {
@@ -67,7 +67,7 @@ namespace word_search
             };
         }
 
-        [[nodiscard]] static constexpr auto save_file() noexcept -> std::filesystem::path
+        [[nodiscard]] static auto save_file() noexcept -> std::filesystem::path
         {
             return "data/save.json";
         }

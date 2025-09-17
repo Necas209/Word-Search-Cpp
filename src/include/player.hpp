@@ -7,7 +7,7 @@
 
 namespace word_search
 {
-    enum class level : std::uint16_t
+    enum class level_t : std::uint16_t
     {
         beginner = 1,
         expert = 2,
@@ -18,19 +18,19 @@ namespace word_search
         std::string name_;
         std::int64_t score_{};
         std::uint16_t age_{};
-        level level_{};
+        level_t level_{};
 
     public:
         constexpr player() noexcept = default;
 
-        constexpr explicit player(std::string name, const std::uint16_t age, const level level) noexcept
+        constexpr explicit player(std::string name, const std::uint16_t age, const level_t level) noexcept
             : name_(std::move(name)), age_(age), level_(level)
         {
         }
 
         [[nodiscard]] auto name() const -> const std::string& { return name_; }
         [[nodiscard]] auto age() const -> std::uint16_t { return age_; }
-        [[nodiscard]] auto level() const -> level { return level_; }
+        [[nodiscard]] auto level() const -> level_t { return level_; }
         [[nodiscard]] auto score() const -> std::int64_t { return score_; }
 
         auto update_score(std::int32_t points) -> void;

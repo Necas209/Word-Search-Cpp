@@ -14,7 +14,7 @@
 
 namespace rv = std::ranges::views;
 
-auto word_search::get_orientations(const difficulty difficulty) -> std::span<const orientation>
+auto word_search::get_orientations(const difficulty_t difficulty) -> std::span<const orientation>
 {
     static constexpr std::array easy{
         orientation::front,
@@ -39,11 +39,11 @@ auto word_search::get_orientations(const difficulty difficulty) -> std::span<con
 
     switch (difficulty)
     {
-    case difficulty::easy:
+    case difficulty_t::easy:
         return easy;
-    case difficulty::medium:
+    case difficulty_t::medium:
         return medium;
-    case difficulty::hard:
+    case difficulty_t::hard:
         return hard;
     }
     throw std::invalid_argument("Invalid difficulty");
@@ -168,7 +168,7 @@ auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
 
     // Result holders
     auto width = 0ul, height = 0ul;
-    auto difficulty = difficulty::easy;
+    auto difficulty = difficulty_t::easy;
     bool accepted = false;
 
     // Widgets
@@ -180,11 +180,11 @@ auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
     {
         switch (difficulty)
         {
-        case difficulty::easy:
+        case difficulty_t::easy:
             return dimension >= 10;
-        case difficulty::medium:
+        case difficulty_t::medium:
             return dimension >= 15;
-        case difficulty::hard:
+        case difficulty_t::hard:
             return dimension >= 20;
         }
         throw std::invalid_argument("Invalid difficulty");
@@ -192,7 +192,7 @@ auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
 
     auto btn_ok = Button("OK", [&]
     {
-        difficulty = static_cast<word_search::difficulty>(diff_index + 1);
+        difficulty = static_cast<word_search::difficulty_t>(diff_index + 1);
         try
         {
             width = std::stoul(width_str);

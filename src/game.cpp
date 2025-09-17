@@ -140,7 +140,8 @@ auto word_search::game::main_loop(ftxui::ScreenInteractive& screen) -> std::opti
 
     const auto quit_button = Button("Save & Quit", [&, this]
     {
-        save_game();
+        const auto save_file = game::save_file();
+        save_game(save_file);
         quit_requested = true;
         screen.Exit();
     });
@@ -218,7 +219,7 @@ auto word_search::game::progress_panel() const -> ftxui::Element
         {
             items.push_back(text(word.str()) | color(Color::Green));
         }
-        else if (board_.difficulty() == difficulty::easy)
+        else if (board_.difficulty() == difficulty_t::easy)
         {
             items.push_back(text(word.str()) | color(Color::Red));
         }

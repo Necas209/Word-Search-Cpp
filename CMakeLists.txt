@@ -38,9 +38,11 @@ add_executable(word-search
 if (MSVC)
     target_compile_options(word-search PRIVATE /W4 /WX /D_CRT_SECURE_NO_WARNINGS)
 else ()
-    target_compile_options(word-search PRIVATE -Wall -Wextra -Wpedantic -Werror -Wconversion -Wdouble-promotion
-            -Wunused-parameter -Wunused-function -Wno-sign-conversion -Wswitch-enum
-            -fsanitize=undefined -fsanitize-trap)
+    target_compile_options(word-search PRIVATE
+            -Wall -Wextra -Wpedantic -Werror
+            -Wconversion -Wdouble-promotion -Wno-sign-conversion -Wswitch-enum
+            -fsanitize=undefined -fsanitize-trap
+    )
 endif ()
 
 target_sources(word-search PRIVATE

@@ -6,17 +6,21 @@ int main()
     auto screen = ftxui::ScreenInteractive::Fullscreen();
     while (true)
     {
-        word_search::game game;
         switch (ui::main_menu(screen))
         {
         case ui::menu_option::new_game:
-            game = word_search::game::new_game(screen);
-            game.play(screen);
-            break;
+            {
+                auto game = word_search::game::new_game(screen);
+                game.play(screen);
+                break;
+            }
         case ui::menu_option::continue_game:
-            game = word_search::game::load_game();
-            game.play(screen);
-            break;
+            {
+                const auto save_file = word_search::game::save_file();
+                auto game = word_search::game::load_game(save_file);
+                game.play(screen);
+                break;
+            }
         case ui::menu_option::exit:
             return 0;
         }
