@@ -21,7 +21,7 @@ namespace word_search
         already_found = 2,
     };
 
-    auto get_orientations(difficulty_t difficulty) -> std::span<const orientation>;
+    auto get_orientations(difficulty_t difficulty) -> std::span<const orientation_t>;
 
     class board final
     {
@@ -90,7 +90,7 @@ namespace word_search
         [[nodiscard]] auto letters_panel() const -> ftxui::Table;
 
     private:
-        [[nodiscard]] auto random_pt(const std::string& word, orientation orientation) const -> point_t;
+        [[nodiscard]] auto random_pt(const std::string& word, orientation_t orientation) const -> point_t;
 
         [[nodiscard]] auto word_fits(const word& word) const -> bool;
 

@@ -19,7 +19,7 @@ auto word_search::orientation_names() -> std::span<const std::string_view>
     return orientation_names;
 }
 
-auto word_search::orientation_offset(const orientation orientation) -> std::pair<int, int>
+auto word_search::orientation_offset(const orientation_t orientation) -> std::pair<int, int>
 {
     static constexpr std::array orientation_offsets = {
         std::pair{1, 0}, // front

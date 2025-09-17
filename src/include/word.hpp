@@ -8,7 +8,7 @@ namespace word_search
 {
     using point_t = point<std::size_t>;
 
-    enum class orientation : std::uint8_t
+    enum class orientation_t : std::uint8_t
     {
         front,
         back,
@@ -22,7 +22,7 @@ namespace word_search
 
     auto orientation_names() -> std::span<const std::string_view>;
 
-    auto orientation_offset(orientation orientation) -> std::pair<int, int>;
+    auto orientation_offset(orientation_t orientation) -> std::pair<int, int>;
 
     auto cleanup(const std::string& str) -> std::string;
 
@@ -30,20 +30,20 @@ namespace word_search
     {
         std::string str_;
         point_t point_{};
-        orientation orientation_{};
+        orientation_t orientation_{};
         bool found_{};
 
     public:
         constexpr word() noexcept = default;
 
-        constexpr explicit word(std::string str, const point_t point, const orientation orientation) noexcept
+        constexpr explicit word(std::string str, const point_t point, const orientation_t orientation) noexcept
             : str_(std::move(str)), point_(point), orientation_(orientation)
         {
         }
 
-        [[nodiscard]] auto point() const -> const point_t& { return point_; }
+        [[nodiscard]] auto point() const -> point_t { return point_; }
         [[nodiscard]] auto str() const -> const std::string& { return str_; }
-        [[nodiscard]] auto orientation() const -> orientation { return orientation_; }
+        [[nodiscard]] auto orientation() const -> orientation_t { return orientation_; }
         [[nodiscard]] auto found() const -> bool { return found_; }
 
         [[nodiscard]] auto length() const -> std::size_t { return str_.length(); }

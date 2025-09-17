@@ -29,6 +29,12 @@ namespace rnd
     {
         return next<T>(0, upper - 1);
     }
+
+    template <>
+    inline std::int8_t next(const std::int8_t lower, const std::int8_t upper)
+    {
+        return static_cast<std::int8_t>(next<std::int16_t>(lower, upper));
+    }
 }
 
 #endif //WORD_SEARCH_RND_HPP

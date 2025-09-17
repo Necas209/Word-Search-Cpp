@@ -14,27 +14,27 @@
 
 namespace rv = std::ranges::views;
 
-auto word_search::get_orientations(const difficulty_t difficulty) -> std::span<const orientation>
+auto word_search::get_orientations(const difficulty_t difficulty) -> std::span<const orientation_t>
 {
     static constexpr std::array easy{
-        orientation::front,
-        orientation::down
+        orientation_t::front,
+        orientation_t::down
     };
     static constexpr std::array medium{
-        orientation::front,
-        orientation::down,
-        orientation::front_down,
-        orientation::front_up
+        orientation_t::front,
+        orientation_t::down,
+        orientation_t::front_down,
+        orientation_t::front_up
     };
     static constexpr std::array hard{
-        orientation::front,
-        orientation::down,
-        orientation::front_down,
-        orientation::front_up,
-        orientation::back,
-        orientation::up,
-        orientation::back_down,
-        orientation::back_up
+        orientation_t::front,
+        orientation_t::down,
+        orientation_t::front_down,
+        orientation_t::front_up,
+        orientation_t::back,
+        orientation_t::up,
+        orientation_t::back_down,
+        orientation_t::back_up
     };
 
     switch (difficulty)
@@ -102,7 +102,7 @@ auto word_search::board::load_words(const std::vector<std::string>& words) -> vo
     }
 }
 
-auto word_search::board::random_pt(const std::string& word, const orientation orientation) const -> point_t
+auto word_search::board::random_pt(const std::string& word, const orientation_t orientation) const -> point_t
 {
     const auto len = word.length();
     const auto [dx, dy] = orientation_offset(orientation);
@@ -169,7 +169,6 @@ auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
     // Result holders
     auto width = 0ul, height = 0ul;
     auto difficulty = difficulty_t::easy;
-    bool accepted = false;
 
     // Widgets
     auto rb_diff = Radiobox(&diff_labels, &diff_index);
@@ -192,7 +191,7 @@ auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
 
     auto btn_ok = Button("OK", [&]
     {
-        difficulty = static_cast<word_search::difficulty_t>(diff_index + 1);
+        difficulty = static_cast<difficulty_t>(diff_index + 1);
         try
         {
             width = std::stoul(width_str);
@@ -213,21 +212,14 @@ auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
             error_msg = "Invalid height for the selected difficulty.";
             return;
         }
-
-        accepted = true;
         screen.Exit();
-    });
-
-    auto btn_cancel = Button("Cancel", [&]
-    {
-        throw std::runtime_error("Board creation cancelled by user.");
     });
 
     const auto container = Container::Vertical({
         rb_diff,
         in_width,
         in_height,
-        Container::Horizontal({btn_ok, btn_cancel})
+        btn_ok,
     });
 
     constexpr std::array hints = {
@@ -243,27 +235,16 @@ auto word_search::board::new_board(ftxui::ScreenInteractive& screen) -> board
             separator(),
             hbox(text("Difficulty: ") | bold, rb_diff->Render()) | center,
             separator(),
-            text(hints[diff_index]) | dim | center, // only dynamic part (plus error below)
+            text(hints[diff_index]) | dim | center,
             separator(),
             hbox(text("Width:  ") | bold, in_width->Render()) | center,
             hbox(text("Height: ") | bold, in_height->Render()) | center,
             (error_msg.empty() ? filler() : (separator(), text(error_msg) | color(Color::Red) | center)),
             separator(),
-            hbox({
-                filler(),
-                btn_ok->Render() | bold,
-                text("  "),
-                btn_cancel->Render(),
-                filler(),
-            }),
+            btn_ok->Render() | bold | center,
         }) | border | flex | center;
     });
     screen.Loop(view);
-
-    if (!accepted)
-    {
-        throw std::runtime_error("Board creation aborted.");
-    }
 
     return board{width, height, difficulty};
 }

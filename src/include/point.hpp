@@ -46,8 +46,8 @@ namespace word_search
         template <std::size_t I>
         constexpr auto&& get() const &&
         {
-            if (I == 0) return x_;
-            if (I == 1) return y_;
+            if constexpr (I == 0) return x_;
+            if constexpr (I == 1) return y_;
         }
     };
 }

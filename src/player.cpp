@@ -36,22 +36,34 @@ auto word_search::player::new_player(ftxui::ScreenInteractive& screen) -> player
 
     std::string name;
     std::string age_str;
-    const std::vector<std::string> levels = {"Beginner", "Expert"};
-    int level_idx = 0; // 0 -> Beginner, 1 -> Expert
-
-    bool cancelled = false;
+    int level_idx = 0;
 
     auto in_name = Input(&name, "your name");
     auto in_age = Input(&age_str, "age (number)");
+    const std::vector<std::string> levels = {"Beginner", "Expert"};
     auto rb_level = Radiobox(&levels, &level_idx);
+
+    std::uint16_t age;
+    level_t level;
+    std::string error_msg;
 
     auto btn_ok = Button("OK", [&]
     {
-        screen.Exit();
-    });
-    auto btn_cancel = Button("Cancel", [&]
-    {
-        cancelled = true;
+        if (name.empty())
+        {
+            error_msg = "Name cannot be empty.";
+            return;
+        }
+        try
+        {
+            age = static_cast<std::uint16_t>(std::stoul(age_str));
+        }
+        catch (...)
+        {
+            error_msg = "Age must be a positive integer.";
+            return;
+        }
+        level = static_cast<level_t>(level_idx);
         screen.Exit();
     });
 
@@ -59,7 +71,7 @@ auto word_search::player::new_player(ftxui::ScreenInteractive& screen) -> player
         in_name,
         in_age,
         rb_level,
-        Container::Horizontal({btn_ok, btn_cancel}),
+        btn_ok,
     });
 
     const auto view = Renderer(container, [&]
@@ -71,43 +83,12 @@ auto word_search::player::new_player(ftxui::ScreenInteractive& screen) -> player
             hbox(text("Age:  ") | bold, in_age->Render()) | center,
             separator(),
             hbox(text("Level:") | bold, rb_level->Render()) | center,
+            error_msg.empty() ? filler() : (separator(), text(error_msg) | color(Color::Red) | center),
             separator(),
-            hbox({
-                filler(),
-                btn_ok->Render() | bold,
-                text("  "),
-                btn_cancel->Render(),
-                filler(),
-            }),
+            btn_ok->Render() | bold | center,
         }) | border | center | size(WIDTH, GREATER_THAN, 40);
     });
     screen.Loop(view);
-
-    constexpr std::string default_name = "Jean Doe";
-    constexpr std::uint16_t default_age = 99;
-
-    if (cancelled)
-    {
-        return player{default_name, default_age, level_t::beginner};
-    }
-
-    if (name.empty())
-    {
-        name = default_name;
-    }
-
-    std::uint16_t age;
-    try
-    {
-        age = static_cast<std::uint16_t>(std::stoul(age_str));
-    }
-    catch (...)
-    {
-        age = default_age;
-    }
-
-    // Map 0/1 -> 1/2 to match previous numeric level inputs.
-    const auto level = static_cast<word_search::level_t>(level_idx + 1);
 
     return player{std::move(name), age, level};
 }

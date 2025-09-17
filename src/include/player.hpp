@@ -9,8 +9,8 @@ namespace word_search
 {
     enum class level_t : std::uint16_t
     {
-        beginner = 1,
-        expert = 2,
+        beginner,
+        expert,
     };
 
     class player final

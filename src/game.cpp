@@ -255,7 +255,7 @@ auto word_search::game::find_word_panel(ftxui::ScreenInteractive& screen, word& 
             word = word_search::word{
                 cleanup(state->str),
                 point{x, y},
-                static_cast<orientation>(state->orientation)
+                static_cast<orientation_t>(state->orientation)
             };
             screen.Exit();
         }
