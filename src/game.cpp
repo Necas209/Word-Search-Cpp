@@ -16,8 +16,11 @@ auto word_search::game::play(ftxui::ScreenInteractive& screen) -> void
     start_ = std::chrono::high_resolution_clock::now();
     while (!board_.solved())
     {
-        save_game();
-        switch (const auto word = main_loop(screen); board_.find_word(word))
+        const auto word = main_loop(screen);
+        if (!word)
+            return;
+
+        switch (board_.find_word(word.value()))
         {
         case word_state::not_found:
             player_.update_score(-5);
@@ -116,7 +119,7 @@ auto word_search::game::end_screen(ftxui::ScreenInteractive& screen) const -> vo
     screen.Loop(component);
 }
 
-auto word_search::game::main_loop(ftxui::ScreenInteractive& screen) -> word
+auto word_search::game::main_loop(ftxui::ScreenInteractive& screen) -> std::optional<word>
 {
     using namespace ftxui;
     using namespace std::chrono_literals;
@@ -125,6 +128,7 @@ auto word_search::game::main_loop(ftxui::ScreenInteractive& screen) -> word
     const auto find_word_panel = game::find_word_panel(screen, word);
 
     bool running = true;
+    bool quit_requested = false;
     auto screenRedraw = std::thread([&]
     {
         while (running)
@@ -134,15 +138,31 @@ auto word_search::game::main_loop(ftxui::ScreenInteractive& screen) -> word
         }
     });
 
+    const auto quit_button = Button("Save & Quit", [&, this]
+    {
+        save_game();
+        quit_requested = true;
+        screen.Exit();
+    });
+
+    const auto left_container = Container::Vertical({
+        find_word_panel,
+        quit_button,
+    });
+
     // Compose letters and words into a single screen.
-    const auto renderer = Renderer(find_word_panel, [=, this]
+    const auto renderer = Renderer(left_container, [=, this]
     {
         const auto end = std::chrono::high_resolution_clock::now();
         elapsed_ += end - start_;
         start_ = end;
 
         return hbox({
-            find_word_panel->Render(),
+            vbox({
+                find_word_panel->Render(),
+                filler(),
+                quit_button->Render() | center,
+            }),
             separator(),
             vbox({
                 text("Board") | bold | center,
@@ -150,17 +170,16 @@ auto word_search::game::main_loop(ftxui::ScreenInteractive& screen) -> word
                 board_.letters_panel().Render() | flex | size(WIDTH, GREATER_THAN, 50)
             }),
             separator(),
-            vbox({
-                text("Progress") | bold | center,
-                separator(),
-                progress_panel(),
-            }),
+            progress_panel(),
         }) | border | center;
     });
 
     screen.Loop(renderer);
     running = false;
     screenRedraw.join();
+
+    if (quit_requested)
+        return std::nullopt;
 
     return word;
 }
@@ -175,6 +194,8 @@ auto word_search::game::progress_panel() const -> ftxui::Element
 
     const auto& words = board_.words();
     auto items = Elements{
+        text("Progress") | bold | center,
+        separator(),
         gridbox({
             {label("Player: "), text(player_.name())},
             {label("Age: "), text(std::to_string(player_.age()))},

@@ -78,7 +78,7 @@ namespace word_search
             return std::chrono::duration_cast<std::chrono::seconds>(elapsed_);
         }
 
-        [[nodiscard]] auto main_loop(ftxui::ScreenInteractive& screen) -> word;
+        [[nodiscard]] auto main_loop(ftxui::ScreenInteractive& screen) -> std::optional<word>;
 
         auto end_screen(ftxui::ScreenInteractive& screen) const -> void;
 
