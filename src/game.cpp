@@ -254,7 +254,7 @@ auto word_search::game::find_word_panel(ftxui::ScreenInteractive& screen, word& 
             const auto y = std::stoul(state->sy);
             word = word_search::word{
                 cleanup(state->str),
-                point{x, y},
+                point_t{x, y},
                 static_cast<orientation_t>(state->orientation)
             };
             screen.Exit();
