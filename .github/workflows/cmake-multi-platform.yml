@@ -47,6 +47,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Add PPA for GCC 15
+        if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 100 \
+                                   --slave /usr/bin/g++ g++ /usr/bin/g++-15
+
+      - name: Check g++ version
+        if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
+        run: g++ --version
+
       - name: Set reusable strings
         # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
         id: strings
