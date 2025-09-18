@@ -3,11 +3,10 @@
 #include <fstream>
 #include <iostream>
 #include <ranges>
+#include <utility>
+#include <vector>
 
 #include <ftxui/component/component.hpp>
-#include <utility>
-
-#include "ui.hpp"
 
 namespace rv = std::ranges::views;
 
@@ -270,7 +269,7 @@ auto word_search::game::find_word_panel(ftxui::ScreenInteractive& screen, word& 
         in_word,
         in_x,
         in_y,
-        Container::Horizontal({orientation_menu}),
+        orientation_menu,
     });
 
     return Renderer(container, [=]

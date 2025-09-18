@@ -25,9 +25,9 @@ namespace word_search
 
         [[nodiscard]] constexpr auto y() const noexcept -> T { return y_; }
 
-        constexpr auto operator==(const point& point) const -> bool { return x_ == point.x_ && y_ == point.y_; }
+        constexpr auto operator==(const point& other) const -> bool { return x_ == other.x_ && y_ == other.y_; }
 
-        constexpr auto operator!=(const point& point) const -> bool { return !(*this == point); }
+        constexpr auto operator!=(const point& other) const -> bool { return !(*this == other); }
 
         friend void to_json(nlohmann::json& j, const point& point)
         {
