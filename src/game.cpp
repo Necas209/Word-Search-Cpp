@@ -262,7 +262,7 @@ auto word_search::game::find_word_panel(ftxui::ScreenInteractive& screen, word& 
         {
         }
     };
-    const auto entries = std::ranges::to<std::vector<std::string>>(orientation_names());
+    const auto entries = orientation_names() | std::ranges::to<std::vector<std::string>>();
     const auto orientation_menu = Menu(entries, &state->orientation, option);
 
     const auto container = Container::Vertical({

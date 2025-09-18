@@ -305,24 +305,27 @@ auto word_search::board::letters_panel() const -> ftxui::Table
     using namespace ftxui;
     namespace rv = std::ranges::views;
 
-    auto create_cell = [](const std::string& s) { return text(s) | center | size(WIDTH, EQUAL, 2); };
-    auto letter_cell = [&](const char ch) { return create_cell(std::string(1, ch)); };
-    auto coord_cell = [&](const std::size_t dimension) { return create_cell(std::to_string(dimension)) | dim; };
+    auto cell = [](const std::string& s) { return text(s) | center | size(WIDTH, EQUAL, 2); };
+    auto letter_cell = [&](const char ch) { return cell(std::string(1, ch)); };
+    auto coord_cell = [&](const std::size_t dimension) { return cell(std::to_string(dimension)) | dim; };
 
-    auto header = Elements{text("Y\\X")};
-    auto columns = rv::iota(0ul, width_) | rv::transform(coord_cell);
-    header.append_range(columns);
+    auto header = rv::iota(0ul, width_)
+        | rv::transform(coord_cell)
+        | std::ranges::to<Elements>();
+    header.insert(header.begin(), text("Y\\X")); // Add empty column for index.
 
-    std::vector<Elements> rows;
-    rows.push_back(header);
+    auto rows = std::vector<Elements>{std::move(header)};
 
     for (const auto row : rv::iota(0ul, height_))
     {
-        auto row_cells = Elements{coord_cell(row)};
-        auto cells = rv::iota(0ul, width_)
+        auto row_cells = rv::iota(0ul, width_)
             | rv::transform([this, row](const auto col) { return (*this)[col, row]; })
-            | rv::transform(letter_cell);
-        row_cells.append_range(cells);
+            | rv::transform(letter_cell)
+            | std::ranges::to<Elements>();
+
+        // Add row index cell
+        row_cells.insert(row_cells.begin(), coord_cell(row));
+
         rows.push_back(row_cells);
     }
 

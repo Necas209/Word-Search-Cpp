@@ -36,8 +36,8 @@ auto word_search::orientation_offset(const orientation_t orientation) -> std::pa
 
 auto word_search::cleanup(const std::string& str) -> std::string
 {
-    auto cleaned = str
+    return str
         | std::views::filter([](const char ch) { return std::isalpha(ch, std::locale::classic()); })
-        | std::views::transform([](const char ch) { return std::toupper(ch, std::locale::classic()); });
-    return std::ranges::to<std::string>(cleaned);
+        | std::views::transform([](const char ch) { return std::toupper(ch, std::locale::classic()); })
+        | std::ranges::to<std::string>();
 }
