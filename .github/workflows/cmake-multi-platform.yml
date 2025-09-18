@@ -64,7 +64,7 @@ jobs:
       - name: Download and extract GCC 15
         if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
         run: |
-          wget https://ftp.gnu.org/gnu/gcc/gcc-15.1.0/gcc-15.1.0.tar.gz
+          wget http://ftp.gnu.org/gnu/gcc/gcc-15.1.0/gcc-15.1.0.tar.gz
           tar -xzf gcc-15.1.0.tar.gz
           cd gcc-15.1.0
           ./contrib/download_prerequisites
