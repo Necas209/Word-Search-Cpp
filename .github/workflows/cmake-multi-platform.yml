@@ -23,73 +23,30 @@ jobs:
       #
       # To add more build types (Release, Debug, RelWithDebInfo, etc.) customize the build_type list.
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
-        build_type: [ Release ]
-        c_compiler: [ gcc, clang, cl ]
         include:
-          - os: windows-latest
-            c_compiler: cl
-            cpp_compiler: cl
           - os: ubuntu-latest
+            build_type: Release
             c_compiler: gcc
             cpp_compiler: g++
           - os: ubuntu-latest
+            build_type: Release
             c_compiler: clang
             cpp_compiler: clang++
-        exclude:
           - os: windows-latest
-            c_compiler: gcc
-          - os: windows-latest
-            c_compiler: clang
-          - os: ubuntu-latest
+            build_type: Release
             c_compiler: cl
+            cpp_compiler: cl
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
+      # Set GCC 14 explicitly for the Ubuntu GCC job
+      - name: Set GCC 14 as default
+        if: matrix.os == 'ubuntu-latest' && matrix.c_compiler == 'gcc'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            wget \
-            libgmp-dev \
-            libmpfr-dev \
-            libmpc-dev \
-            flex \
-            bison \
-            zlib1g-dev
-
-      - name: Download and extract GCC 15
-        if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
-        run: |
-          wget http://ftp.gnu.org/gnu/gcc/gcc-15.1.0/gcc-15.1.0.tar.gz
-          tar -xzf gcc-15.1.0.tar.gz
-          cd gcc-15.1.0
-          ./contrib/download_prerequisites
-
-      - name: Build and install GCC 15
-        if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
-        run: |
-          cd gcc-15.1.0
-          mkdir build
-          cd build
-          ../configure --prefix=/usr/local --enable-languages=c,c++
-          make -j$(nproc)
-          sudo make install
-
-      - name: Set GCC 15 as default
-        if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
-        run: |
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/local/bin/gcc-15 100
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/local/bin/g++-15 100
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
+                                   --slave /usr/bin/g++ g++ /usr/bin/g++-14
           sudo update-alternatives --config gcc
-          sudo update-alternatives --config g++
-
-      - name: Check g++ version
-        if: runner.os == 'Linux' && matrix.c_compiler == 'gcc'
-        run: g++ --version
 
       - name: Set reusable strings
         # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.

@@ -309,24 +309,21 @@ auto word_search::board::letters_panel() const -> ftxui::Table
     auto letter_cell = [&](const char ch) { return cell(std::string(1, ch)); };
     auto coord_cell = [&](const std::size_t dimension) { return cell(std::to_string(dimension)) | dim; };
 
-    auto header = rv::iota(0ul, width_)
-        | rv::transform(coord_cell)
-        | std::ranges::to<Elements>();
+    auto header = std::ranges::to<Elements>(rv::iota(0ul, width_) | rv::transform(coord_cell));
     header.insert(header.begin(), text("Y\\X")); // Add empty column for index.
 
-    auto rows = std::vector<Elements>{std::move(header)};
+    auto rows = std::vector<Elements>{header};
 
-    for (const auto row : rv::iota(0ul, height_))
+    for (const auto y : rv::iota(0ul, height_))
     {
         auto row_cells = rv::iota(0ul, width_)
-            | rv::transform([this, row](const auto col) { return (*this)[col, row]; })
-            | rv::transform(letter_cell)
-            | std::ranges::to<Elements>();
+            | rv::transform([this, y](const auto x) { return (*this)[x, y]; })
+            | rv::transform(letter_cell);
+        auto row = std::ranges::to<Elements>(row_cells);
 
         // Add row index cell
-        row_cells.insert(row_cells.begin(), coord_cell(row));
-
-        rows.push_back(row_cells);
+        row.insert(row.begin(), coord_cell(y));
+        rows.push_back(row);
     }
 
     for (auto& word : words_ | rv::filter([](const auto& w) { return w.found(); }))
