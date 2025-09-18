@@ -5,6 +5,8 @@ A terminal-based word search game written in modern C++ (C++23) using the
 
 Find hidden words on a board, track your score and time, and save your progress to continue later.
 
+[![CMake on multiple platforms](https://github.com/Necas209/Word-Search-Cpp/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=main&event=push)](https://github.com/Necas209/Word-Search-Cpp/actions/workflows/cmake-multi-platform.yml)
+
 ## Features
 
 - Multiple difficulty levels and themes (picked when starting a new game)
@@ -16,7 +18,7 @@ Find hidden words on a board, track your score and time, and save your progress 
 ## Prerequisites
 
 - A C++23 compatible compiler
-    - Linux/macOS: GCC 13+ or Clang 16+
+    - Linux/macOS: GCC 14+ or Clang 16+
     - Windows: MSVC 19.36+ (VS 2022)
 - CMake 3.30 or newer
 - Git
@@ -30,7 +32,7 @@ First, make sure you have all the prerequisites installed.
 
 Then, clone the repository and run the following commands:
 
-### Linux (GCC) / macOS (Clang)
+### Linux / macOS
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -40,7 +42,7 @@ cmake --build build -j
 cd build && ./word-search
 ```
 
-### Windows (MSVC)
+### Windows
 
 ```shell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
